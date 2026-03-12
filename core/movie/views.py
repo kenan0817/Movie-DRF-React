@@ -65,3 +65,8 @@ class StudioListAV(ListCreateAPIView):
 class StudioDetailAV(RetrieveUpdateDestroyAPIView):
     queryset=Studio.objects.all()
     serializer_class=StudioSerializer
+
+
+
+
+

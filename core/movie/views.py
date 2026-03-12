@@ -40,7 +40,7 @@ class MovieListAV(ListCreateAPIView):
     serializer_class=MovieSerializer
     filter_backends=[DjangoFilterBackend,SearchFilter]
     filterset_class=MovieFilter
-    search_fields=['^title','^studio_title']
+    search_fields=['^title', '^studio__title']
     pagination_class=MoviePagination
     
 class MovieDetailAV(RetrieveUpdateDestroyAPIView):

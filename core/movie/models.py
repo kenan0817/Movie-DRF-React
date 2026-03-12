@@ -29,7 +29,7 @@ class Movie(models.Model):
     imdb=models.FloatField()
     duration=models.IntegerField()
     local=models.BooleanField(default=False)
-    user=models.ForeignKey(User,on_delete=models.SET_NULL,null=True)
+    user=models.ForeignKey(User,on_delete=models.SET_NULL,null=True,blank=True)
     relaese=models.DateField()
     updated=models.DateTimeField(auto_now=True)
     created=models.DateTimeField(auto_now_add=True)

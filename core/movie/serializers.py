@@ -25,4 +25,4 @@ class MovieSerializer(serializers.ModelSerializer):
     movie_images=MovieImageSerializer(many=True,read_only=True,source='images',)
     class Meta:
         model=Movie
-        fields=['id','title','description','studio','studio_id','genres','genre_ids','imdb','duration','local','user','relaese','created','updated','movie_images']
+        fields=['id','title','description','studio','studio_id','genres','genre_ids','poster_image','background_image','imdb','duration','local','user','relaese','created','updated','movie_images']

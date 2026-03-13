@@ -1,13 +1,18 @@
-import { useState } from 'react'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import MovieListPage from "./pages/MovieListPage";
+import MovieDetailPage from "./pages/MovieDetailPage";
 import './App.css'
-
 function App() {
 
   return (
-    <>
-    <h1>Kino Appi</h1>
-    </>
-  )
+
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MovieListPage />} />
+        <Route path="/movies/:id" element={<MovieDetailPage />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;

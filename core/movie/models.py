@@ -26,6 +26,8 @@ class Movie(models.Model):
     description=models.TextField()
     genres=models.ManyToManyField(Genre,related_name='movies')
     studio=models.ForeignKey(Studio,on_delete=models.SET_NULL,null=True,blank=True,related_name='movies')
+    poster_image=models.ImageField(upload_to='movie_posters/',null=True,blank=True)
+    background_image=models.ImageField(upload_to='movie_backgrounds/',null=True,blank=True)
     imdb=models.FloatField()
     duration=models.IntegerField()
     local=models.BooleanField(default=False)

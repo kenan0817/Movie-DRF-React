@@ -10,7 +10,7 @@ class MovieImageInline(admin.TabularInline):
 
 @admin.register(Movie)
 class MovieAdmin(admin.ModelAdmin):
-    list_display=('title','studio','imdb','poster_preview','background_preview','updated')
+    list_display=('title','studio','imdb','updated')
     list_filter=('studio','genres','local')
     search_fields=('title','studio__title')
     filter_horizontal=('genres',)
@@ -21,7 +21,7 @@ class MovieAdmin(admin.ModelAdmin):
             'fields': ('title','description','studio','genres','imdb','duration','relaese','local','user')
         }),
         ('Cover Images', {
-            'fields': ('poster_image','poster_preview','background_image','background_preview')
+            'fields': ('poster_image','poster_preview','background_image','background_preview','trailer_url')
         }),
     )
 

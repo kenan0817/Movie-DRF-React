@@ -28,6 +28,7 @@ class Movie(models.Model):
     studio=models.ForeignKey(Studio,on_delete=models.SET_NULL,null=True,blank=True,related_name='movies')
     poster_image=models.ImageField(upload_to='movie_posters/',null=True,blank=True)
     background_image=models.ImageField(upload_to='movie_backgrounds/',null=True,blank=True)
+    trailer_url=models.URLField(blank=True,null=True)
     imdb=models.FloatField()
     duration=models.IntegerField()
     local=models.BooleanField(default=False)

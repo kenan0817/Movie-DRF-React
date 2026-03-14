@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { getMovieDetail } from "../services/movieService";
 import { getMovieMedia, resolveMovieImage } from "../data/movieMedia";
 
@@ -26,11 +26,63 @@ const getYear = (date) => {
   return new Date(date).getFullYear();
 };
 
+const getYouTubeEmbedUrl = (trailerUrl) => {
+  if (!trailerUrl) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(trailerUrl);
+    const normalizedHost = parsedUrl.hostname.replace(/^www\./, "");
+    let videoId = "";
+
+    if (normalizedHost === "youtu.be") {
+      videoId = parsedUrl.pathname.split("/").filter(Boolean)[0] || "";
+    }
+
+    if (normalizedHost.endsWith("youtube.com")) {
+      if (parsedUrl.pathname === "/watch") {
+        videoId = parsedUrl.searchParams.get("v") || "";
+      } else if (parsedUrl.pathname.startsWith("/embed/")) {
+        videoId = parsedUrl.pathname.split("/")[2] || "";
+      } else if (parsedUrl.pathname.startsWith("/shorts/")) {
+        videoId = parsedUrl.pathname.split("/")[2] || "";
+      }
+    }
+
+    if (!videoId) {
+      return "";
+    }
+
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`;
+  } catch {
+    return "";
+  }
+};
+
 const MovieDetailPage = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [movie, setMovie] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isTrailerOpen, setIsTrailerOpen] = useState(false);
+  const backTarget = useMemo(
+    () => (typeof location.state?.from === "string" ? location.state.from : "/"),
+    [location.state],
+  );
+
+  const handleBack = () => {
+    navigate(backTarget, {
+      replace: true,
+      state: {
+        restoreScrollTop: location.state?.restoreScrollTop ?? 0,
+        restoreMovieId: location.state?.restoreMovieId ?? null,
+        restoreSectionKey: location.state?.restoreSectionKey ?? null,
+      },
+    });
+  };
 
   useEffect(() => {
     const fetchMovieDetail = async () => {
@@ -52,11 +104,37 @@ const MovieDetailPage = () => {
   }, [id]);
 
   const media = movie ? getMovieMedia(movie) : null;
+  const trailerEmbedUrl = useMemo(() => getYouTubeEmbedUrl(movie?.trailer_url), [movie?.trailer_url]);
   const galleryItems = movie
     ? movie.movie_images?.length > 0
       ? movie.movie_images.map((imageItem) => resolveMovieImage(imageItem.image))
       : [media?.backdrop, media?.poster].filter(Boolean)
     : [];
+
+  useEffect(() => {
+    setIsTrailerOpen(false);
+  }, [id, trailerEmbedUrl]);
+
+  useEffect(() => {
+    if (!isTrailerOpen) {
+      return undefined;
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsTrailerOpen(false);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isTrailerOpen]);
 
   return (
     <main className="detail-page">
@@ -65,9 +143,7 @@ const MovieDetailPage = () => {
           KINO
         </Link>
 
-        <Link to="/" className="back-link">
-          Back to Home
-        </Link>
+        <button type="button" className="back-link" onClick={handleBack}>Back</button>
       </header>
 
       {isLoading && <div className="status-card detail-status">Loading movie detail...</div>}
@@ -101,14 +177,60 @@ const MovieDetailPage = () => {
                 <p className="detail-description">{movie.description}</p>
 
                 <div className="detail-actions">
-                  <Link to="/" className="hero-button hero-button-primary">
-                    Browse More
-                  </Link>
-                  <span className="detail-note">Streaming style layout with local poster and backdrop mapping.</span>
+                  <button type="button" className="hero-button hero-button-primary" disabled>
+                    Watching
+                  </button>
+                  <button
+                    type="button"
+                    className="hero-button hero-button-secondary"
+                    onClick={() => setIsTrailerOpen(true)}
+                    disabled={!trailerEmbedUrl}
+                  >
+                    Trailer
+                  </button>
+                  <span className="detail-note">
+                    {trailerEmbedUrl
+                      ? "Trailer link can be managed directly from Django admin."
+                      : "Trailer button activates after you add a YouTube link in Django admin."}
+                  </span>
                 </div>
               </div>
             </div>
           </section>
+
+          {isTrailerOpen && trailerEmbedUrl && (
+            <div className="trailer-modal" role="dialog" aria-modal="true" aria-label={`${movie.title} trailer`}>
+              <button
+                type="button"
+                className="trailer-modal-backdrop"
+                onClick={() => setIsTrailerOpen(false)}
+                aria-label="Close trailer"
+              />
+
+              <div className="trailer-modal-panel">
+                <div className="trailer-modal-header">
+                  <div>
+                    <span className="section-tag">Trailer</span>
+                    <h2>{movie.title}</h2>
+                  </div>
+
+                  <button type="button" className="back-link" onClick={() => setIsTrailerOpen(false)}>
+                    Close
+                  </button>
+                </div>
+
+                <div className="trailer-frame-shell">
+                  <iframe
+                    src={trailerEmbedUrl}
+                    title={`${movie.title} trailer`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <section className="detail-content">
             <div className="detail-panel">

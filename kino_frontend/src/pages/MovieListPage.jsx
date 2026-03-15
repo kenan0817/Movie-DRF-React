@@ -71,8 +71,8 @@ const getImdbMovies = (movies) =>
         return secondMovie.imdb - firstMovie.imdb;
       }
 
-       return getTimestamp(secondMovie) - getTimestamp(firstMovie);
-     });
+      return getTimestamp(secondMovie) - getTimestamp(firstMovie);
+    });
 
 const getPageFromSearchParams = (searchParams) => {
   const pageValue = Number(searchParams.get("page") || "1");

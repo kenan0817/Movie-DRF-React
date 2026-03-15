@@ -1,7 +1,12 @@
+import { faBookmark as faBookmarkRegular } from "@fortawesome/free-regular-svg-icons";
+import { faBookmark as faBookmarkSolid } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import SiteFooter from "../components/SiteFooter";
 import { getMovieDetail } from "../services/movieService";
 import { getMovieMedia, resolveMovieImage } from "../data/movieMedia";
+import { useMyList } from "../hooks/useMyList";
 
 const formatDuration = (minutes) => {
   if (!minutes) {
@@ -68,6 +73,14 @@ const MovieDetailPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
+  const [isNavScrolled, setIsNavScrolled] = useState(false);
+  const { movieIds, toggleMovieId } = useMyList();
+
+  useEffect(() => {
+    const handleNavScroll = () => setIsNavScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleNavScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleNavScroll);
+  }, []);
   const backTarget = useMemo(
     () => (typeof location.state?.from === "string" ? location.state.from : "/"),
     [location.state],
@@ -83,6 +96,11 @@ const MovieDetailPage = () => {
       },
     });
   };
+
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [id]);
 
   useEffect(() => {
     const fetchMovieDetail = async () => {
@@ -103,6 +121,15 @@ const MovieDetailPage = () => {
     fetchMovieDetail();
   }, [id]);
 
+  const toggleMyList = () => {
+    if (!id) {
+      return;
+    }
+
+    toggleMovieId(id);
+  };
+
+  const isInList = movieIds.includes(String(id));
   const media = movie ? getMovieMedia(movie) : null;
   const trailerEmbedUrl = useMemo(() => getYouTubeEmbedUrl(movie?.trailer_url), [movie?.trailer_url]);
   const galleryItems = movie
@@ -137,13 +164,20 @@ const MovieDetailPage = () => {
   }, [isTrailerOpen]);
 
   return (
-    <main className="detail-page">
-      <header className="topbar topbar-detail">
+    <main className="detail-page" id="page-top">
+      <header className={`topbar topbar-detail${isNavScrolled ? " topbar--scrolled" : ""}`}>
         <Link to="/" className="brand">
           KINO
         </Link>
 
-        <button type="button" className="back-link" onClick={handleBack}>Back</button>
+        <div className="topbar-meta">
+          <Link to="/my-list" className="back-link topbar-link">
+            My List {movieIds.length}
+          </Link>
+          <button type="button" className="back-link" onClick={handleBack}>
+            Back
+          </button>
+        </div>
       </header>
 
       {isLoading && <div className="status-card detail-status">Loading movie detail...</div>}
@@ -159,10 +193,6 @@ const MovieDetailPage = () => {
             }}
           >
             <div className="detail-hero-overlay">
-              <div className="detail-poster">
-                <img src={media.poster} alt={`${movie.title} poster`} />
-              </div>
-
               <div className="detail-main">
                 <span className="section-tag">{media.label}</span>
                 <h1>{movie.title}</h1>
@@ -177,8 +207,18 @@ const MovieDetailPage = () => {
                 <p className="detail-description">{movie.description}</p>
 
                 <div className="detail-actions">
-                  <button type="button" className="hero-button hero-button-primary" disabled>
-                    Watching
+                  <button 
+                    type="button" 
+                    className={`hero-button hero-button-primary hero-button-save${isInList ? " hero-button-primary-active" : ""}`}
+                    onClick={toggleMyList}
+                  >
+                    <FontAwesomeIcon
+                      icon={isInList ? faBookmarkSolid : faBookmarkRegular}
+                      className="hero-button-icon"
+                      fixedWidth
+                      aria-hidden="true"
+                    />
+                    <span>{isInList ? "Saved in My List" : "Save to My List"}</span>
                   </button>
                   <button
                     type="button"
@@ -186,7 +226,7 @@ const MovieDetailPage = () => {
                     onClick={() => setIsTrailerOpen(true)}
                     disabled={!trailerEmbedUrl}
                   >
-                    Trailer
+                    ▶ Trailer
                   </button>
                   <span className="detail-note">
                     {trailerEmbedUrl
@@ -194,6 +234,10 @@ const MovieDetailPage = () => {
                       : "Trailer button activates after you add a YouTube link in Django admin."}
                   </span>
                 </div>
+              </div>
+
+              <div className="detail-poster">
+                <img src={media.poster} alt={`${movie.title} poster`} />
               </div>
             </div>
           </section>
@@ -302,6 +346,8 @@ const MovieDetailPage = () => {
           </section>
         </>
       )}
+
+      <SiteFooter />
     </main>
   );
 };

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import MovieCard from "../components/MovieCard";
+import SiteFooter from "../components/SiteFooter";
 import { getAllMovies, getMovies } from "../services/movieService";
 import { getMovieMedia } from "../data/movieMedia";
+import { useMyList } from "../hooks/useMyList";
 
 const PAGE_SIZE = 10;
 const TRENDING_LIMIT = 6;
@@ -68,8 +71,8 @@ const getImdbMovies = (movies) =>
         return secondMovie.imdb - firstMovie.imdb;
       }
 
-      return getTimestamp(secondMovie) - getTimestamp(firstMovie);
-    });
+       return getTimestamp(secondMovie) - getTimestamp(firstMovie);
+     });
 
 const getPageFromSearchParams = (searchParams) => {
   const pageValue = Number(searchParams.get("page") || "1");
@@ -94,7 +97,6 @@ const MovieShelf = ({ sectionMovies, options }) => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(sectionMovies.length > 0);
   const shelfStorageKey = `movie-shelf-scroll:${sectionKey}:${currentPage}`;
-
   useEffect(() => {
     const shelfElement = shelfRef.current;
 
@@ -152,7 +154,7 @@ const MovieShelf = ({ sectionMovies, options }) => {
   };
 
   if (!sectionMovies.length) {
-    return <div className="status-card shelf-status">Bu bolmede hele film yoxdur.</div>;
+    return <div className="status-card shelf-status">There are no movies in this section yet.</div>;
   }
 
   return (
@@ -185,50 +187,19 @@ const MovieShelf = ({ sectionMovies, options }) => {
 
       <div className="movie-shelf" data-section={sectionKey} ref={shelfRef}>
         {sectionMovies.map((movie, index) => {
-          const media = getMovieMedia(movie);
           const rankNumber = useGlobalRank
             ? (currentPage - 1) * PAGE_SIZE + index + 1
             : index + 1;
 
           return (
-            <article
+            <MovieCard
               key={`${sectionKey}-${movie.id}`}
-              className="movie-card"
-              data-movie-id={movie.id}
-              style={{ "--card-accent": media.accent }}
-            >
-              <button
-                type="button"
-                className="movie-card-link"
-                onClick={() => onOpenMovie(movie.id, sectionKey)}
-              >
-                <div className="movie-card-image">
-                  <img src={media.poster} alt={`${movie.title} poster`} />
-
-                  {!showImdbBadge && (
-                    <span className="movie-rank">{String(rankNumber).padStart(2, "0")}</span>
-                  )}
-
-                  {showImdbBadge && <span className="movie-card-badge">IMDB {movie.imdb}</span>}
-                </div>
-
-                <div className="movie-card-content">
-                  <h3>{movie.title}</h3>
-
-                  <div className="movie-card-meta">
-                    <span>IMDB {movie.imdb}</span>
-                    <span>{getYear(movie.relaese)}</span>
-                  </div>
-
-                  <p>{trimText(movie.description, 92)}</p>
-
-                  <div className="movie-card-footer">
-                    <span>{movie.studio?.title || "Unknown Studio"}</span>
-                    <span>{formatDuration(movie.duration)}</span>
-                  </div>
-                </div>
-              </button>
-            </article>
+              movie={movie}
+              sectionKey={sectionKey}
+              rankNumber={rankNumber}
+              showImdbBadge={showImdbBadge}
+              onOpenMovie={onOpenMovie}
+            />
           );
         })}
       </div>
@@ -249,6 +220,14 @@ const MovieListPage = () => {
   const isFirstPageRenderRef = useRef(true);
   const shouldRestoreScrollRef = useRef(true);
   const listScrollStorageKey = `movie-list-scroll:${location.pathname}${location.search}`;
+  const [isNavScrolled, setIsNavScrolled] = useState(false);
+  const { movieIds: myListMovieIds } = useMyList();
+
+  useEffect(() => {
+    const handleNavScroll = () => setIsNavScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleNavScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleNavScroll);
+  }, []);
   const returnPath = useMemo(
     () => ({
       from: `${location.pathname}${location.search}`,
@@ -265,8 +244,8 @@ const MovieListPage = () => {
         const data = await getMovies(currentPage, PAGE_SIZE);
         setMoviesData(data);
       } catch (error) {
-        console.error("Film datasi alinarken xeta bas verdi:", error);
-        setErrorMessage("Filmleri yuklemek mumkun olmadi.");
+        console.error("Error fetching movie data:", error);
+        setErrorMessage("Failed to load movies.");
       } finally {
         setIsLoading(false);
       }
@@ -292,7 +271,7 @@ const MovieListPage = () => {
         const data = await getAllMovies();
         setAllMovies(data);
       } catch (error) {
-        console.error("Umumi film siyahisi alinarken xeta bas verdi:", error);
+        console.error("Error fetching general movie list:", error);
       } finally {
         setIsShelfLoading(false);
       }
@@ -406,8 +385,8 @@ const MovieListPage = () => {
   };
 
   return (
-    <main className="netflix-page">
-      <header className="topbar">
+    <main className="netflix-page" id="page-top">
+      <header className={`topbar${isNavScrolled ? " topbar--scrolled" : ""}`}>
         <Link to="/" className="brand">
           KINO
         </Link>
@@ -416,6 +395,9 @@ const MovieListPage = () => {
           <span>Movies</span>
           <span>Page {currentPage}</span>
           <span>{moviesData?.count ?? 0} Titles</span>
+          <Link to="/my-list" className="back-link topbar-link">
+            My List {myListMovieIds.length}
+          </Link>
         </div>
       </header>
 
@@ -475,15 +457,19 @@ const MovieListPage = () => {
               <h2>Trending Now</h2>
             </div>
 
-            <p className="section-caption">Son elave olunan ve en cox diqqet ceken filmler</p>
+            <p className="section-caption">Recently added and most popular movies</p>
           </div>
 
           {isShelfLoading && !trendingMovies.length ? (
-            <div className="status-card shelf-status">Trending siyahisi yuklenir...</div>
+            <div className="status-card shelf-status">Loading trending list...</div>
           ) : (
             <MovieShelf
               sectionMovies={trendingMovies}
-              options={{ sectionKey: "trending", currentPage, onOpenMovie: openMovieDetail }}
+              options={{
+                sectionKey: "trending",
+                currentPage,
+                onOpenMovie: openMovieDetail,
+              }}
             />
           )}
         </section>
@@ -491,8 +477,8 @@ const MovieListPage = () => {
         <section className="content-section" id="continue-watching">
           <div className="section-header">
             <div>
-              <span className="section-tag">Continue Watching</span>
-              <h2>Continue Watching</h2>
+              <span className="section-tag">All Movies</span>
+              <h2>All Movies</h2>
             </div>
 
             <p className="section-caption">
@@ -507,7 +493,12 @@ const MovieListPage = () => {
           {!errorMessage && (!isLoading || movies.length > 0) && (
             <MovieShelf
               sectionMovies={movies}
-              options={{ sectionKey: "continue", useGlobalRank: true, currentPage, onOpenMovie: openMovieDetail }}
+              options={{
+                sectionKey: "continue",
+                useGlobalRank: true,
+                currentPage,
+                onOpenMovie: openMovieDetail,
+              }}
             />
           )}
 
@@ -540,23 +531,30 @@ const MovieListPage = () => {
         <section className="content-section">
           <div className="section-header">
             <div>
-              <span className="section-tag">IMDB</span>
-              <h2>IMDB 7.5 - 10</h2>
+              <span className="section-tag">Top Rated</span>
+              <h2>Top Rated</h2>
             </div>
 
-            <p className="section-caption">Butun filmler arasindan yuksek reytingliler</p>
+            <p className="section-caption">Highest rated titles across the full catalog</p>
           </div>
 
           {isShelfLoading && !imdbMovies.length ? (
-            <div className="status-card shelf-status">IMDB siyahisi yuklenir...</div>
+            <div className="status-card shelf-status">Loading top rated list...</div>
           ) : (
             <MovieShelf
               sectionMovies={imdbMovies}
-              options={{ sectionKey: "imdb", showImdbBadge: true, currentPage, onOpenMovie: openMovieDetail }}
+              options={{
+                sectionKey: "imdb",
+                showImdbBadge: true,
+                currentPage,
+                onOpenMovie: openMovieDetail,
+              }}
             />
           )}
         </section>
       </section>
+
+      <SiteFooter />
     </main>
   );
 };
